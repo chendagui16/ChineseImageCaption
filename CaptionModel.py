@@ -90,10 +90,7 @@ class CaptionModel(object):
                                  epochs=self.epochs)
 
     def build_inference_model(self, checkpoint):
-        try:
-            model = load_model(checkpoint)
-        except:
-            print('No checkpoint in the {}'.format(checkpoint))
+        model = load_model(checkpoint)
 
         # image model
         self.image_model = Sequential()

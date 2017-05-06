@@ -1,6 +1,11 @@
 from configuration import Config
 from utils import CharaterTable, Preprocessor, vetorize_caption
 from CaptionModel import CaptionModel
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('checkpoint', default='checkpoint/weights.008-0.866.hdf5', help='checkpoints path')
+args = parser.parse_args()
 
 # Load config file, set data location
 config = Config()
@@ -19,7 +24,7 @@ caption_model = CaptionModel(image_len=data.image_len,
                              vocab_size=ctable.vocab_size)
 
 # build the inference model
-caption_model.build_inference_model('checkpoint/weights.008-0.866.hdf5')
+caption_model.build_inference_model(args.checkpoint)
 
 # inference the caption
 result = caption_model.inference(data.val_set)

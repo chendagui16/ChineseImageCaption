@@ -1,3 +1,5 @@
 logs/
 checkpoint/
 *~
+*.swp
+.ropeproject
