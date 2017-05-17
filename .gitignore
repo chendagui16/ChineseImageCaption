@@ -3,3 +3,4 @@ checkpoint/
 *~
 *.swp
 .ropeproject
+*.pyc
