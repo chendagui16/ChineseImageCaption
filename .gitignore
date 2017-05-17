@@ -1,5 +1,7 @@
 logs/
+.ipynb_checkpoints/
 checkpoint/
 *~
 *.swp
 .ropeproject
+*.pyc
