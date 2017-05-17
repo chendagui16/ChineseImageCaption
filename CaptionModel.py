@@ -12,7 +12,7 @@ class CaptionModel(object):
         self.image_len = image_len
 
         # max caption length
-        self.caption_len = caption_len
+        self.caption_len = caption_len + 2  # add start word and end word
 
         # unique vocabular size
         self.vocab_size = vocab_size
@@ -89,7 +89,9 @@ class CaptionModel(object):
                                  callbacks=[reduce_lr, save_model, tensorboard],
                                  epochs=self.epochs)
 
-    def build_inference_model(self, checkpoint):
+    def build_inference_model(self, checkpoint, beam_search=False):
+        if beam_search:
+            self.inference_batch_size = 1
         model = load_model(checkpoint)
 
         # image model
@@ -124,6 +126,8 @@ class CaptionModel(object):
         del model
 
     def inference(self, X_test):
+        """Inference using greedy method
+        """
         test_num = X_test.shape[0]
         assert test_num % self.inference_batch_size == 0, 'inference_batch_size should divide Test sample number'
         steps_per_epoch = test_num // self.inference_batch_size
