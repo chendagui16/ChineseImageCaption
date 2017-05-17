@@ -58,7 +58,9 @@ class CharaterTable(object):
     + Decode the integer representation to charater
     """
     def __init__(self, captions):
-        vocabs = set()
+        self.start_word = '<w>'
+        self.stop_word = '<\w>'
+        vocabs = set((self.start_word, self.stop_word))
         for caption in captions:
             for line in caption:
                 vocabs |= set(line)
@@ -66,18 +68,33 @@ class CharaterTable(object):
         self.vocab_size = len(vocabs)
         self.char_indices = dict((c, i) for i, c in enumerate(vocabs))
         self.indices_char = dict((i, c) for i, c in enumerate(vocabs))
+        self.start_idx = self.char_indices[self.start_word]
+        self.stop_idx = self.char_indices[self.stop_word]
 
     def encode(self, C, num_rows):
-        x = np.zeros((num_rows, self.vocab_size))
+        x = np.zeros((num_rows + 2, self.vocab_size))
+        x[0, self.start_idx] = 1
         for i, c in enumerate(C):
-            x[i, self.char_indices[c]] = 1
-        x[i+1:, 0] = 1
+            if i >= num_rows:  # restrict the caption length
+                break
+            x[i+1, self.char_indices[c]] = 1
+        x[i+2:, self.stop_idx] = 1
         return x
 
     def decode(self, x, calc_argmax=True):
         if calc_argmax:
             x = x.argmax(axis=-1)
-        return ''.join(self.indices_char[i] for i in x)
+        words = []
+        find_start = False
+        for i in x:
+            if i == self.start_idx:
+                find_start = True
+                continue
+            elif i == self.stop_idx:
+                break
+            if find_start:
+                words.append(self.indices_char[i])
+        return words
 
 
 def vetorize_caption(captions, ctable, caption_len):
