@@ -5,8 +5,10 @@
 * 修改configuration.py 文件, 改变你的数据位置
 * 修改CaptionModel.py 文件, 更改网络模型和参数
 * 通过train.py 或者 train.ipynb (jupyter 推荐使用这种方式, 方便记录) 训练
-* 选择checkpoint文件中的精度较高的模型, 修改test.py 或者 test.ipynb文件进行测试
+* 选择checkpoint文件中的精度较高的模型, 修改test\_beam\_search.ipynb或者test\_greedy.ipynb文件进行测试
 
+## beam_search
+目前**beam search** 已经写好，只需要调用即可，完整的测试案例参考test\_beam\_search.ipynb文件
 ## 结构目录
 * 在 configuration.py 中记载了数据库文件的位置，将其中的workspace 选项进行更改
 * utils.py 中设定了如何将数据文件进行预处理的过程，这里一般不用更改（注意到我们这里把每个caption都pad成一样长，不够长的caption，末位用空字符填充, 所以空字符表示停止符)

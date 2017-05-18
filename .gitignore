@@ -5,3 +5,4 @@ checkpoint/
 *.swp
 .ropeproject
 *.pyc
+result.txt
