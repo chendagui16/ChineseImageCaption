@@ -1,3 +1,7 @@
+# @ Author: Dagui Chen
+# @ Email: goblin_chen@163.com
+# @ Date: 2017-05-08
+# =====================================
 import numpy as np
 import random
 from keras.models import Model, Sequential, load_model
@@ -125,6 +129,9 @@ class CaptionModel(object):
         self.caption_model.set_weights(caption_weigts)
         del model
 
+    def get_image_output(self, test_batch):
+        return np.expand_dims(self.image_model.predict_on_batch(test_batch), axis=1)
+
     def inference(self, X_test):
         """Inference using greedy method
         """
@@ -135,7 +142,7 @@ class CaptionModel(object):
         for i in range(steps_per_epoch):
             test_batch = X_test[i*self.inference_batch_size:(i+1)*self.inference_batch_size]
             char = np.zeros((self.inference_batch_size, self.caption_len))
-            image_output = np.expand_dims(self.image_model.predict_on_batch(test_batch), axis=1)
+            image_output = self.get_image_output(test_batch)
 
             self.caption_model.reset_states()
             predict = self.caption_model.predict_on_batch(image_output)
@@ -148,3 +155,18 @@ class CaptionModel(object):
             result = np.concatenate([result, char], axis=0)
 
         return result
+
+    def inference_step(self, image_embedding, sentence_feed):
+        """Used for Beam search
+        Get the next predict word and prob
+        Args:
+            image_embedding: the image_model's output
+            part_caption: the index to part caption word
+        """
+        self.caption_model.reset_states()
+        next_predict = self.caption_model.predict_on_batch(image_embedding)
+        for word_idx in sentence_feed:
+            word = np.array([word_idx])
+            language_output = self.language_model.predict_on_batch(word[None, ...])
+            next_predict = self.caption_model.predict_on_batch(language_output)
+        return next_predict
