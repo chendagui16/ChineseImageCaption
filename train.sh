@@ -10,7 +10,8 @@ LOG=log/train_pool_${time}.log
 
 # dir path flags
 python train.py --workspace "/home/dagui/.keras/datasets/" \
-	--feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
+    --feature_path "image_vgg19_fc2_feature.h5" --ifpool False \
+	# --feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
 	--caption_file_path "{}.txt" \
 	--save_path "." \
 	--caption_len 30 \

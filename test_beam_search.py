@@ -6,7 +6,7 @@ import codecs
 from tensorflow import flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("caption_len", 30, "The length of caption")
-flags.DEFINE_string("model_weights", "/home/dagui/Documents/class-slides/pattern recognization/ImageCaption2.0/checkpoint/weights.003-0.746.hdf5", "The weights file of test model")  # no use in test
+flags.DEFINE_string("model_weights", "/home/dagui/Documents/class-slides/pattern recognization/course_project/checkpoint/weights.010-0.791.hdf5", "The weights file of test model")  # no use in test
 
 config = Config()
 data = Preprocessor(config)

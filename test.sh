@@ -10,9 +10,10 @@ LOG=log/test_pool_${time}.log
 
 # dir path flags
 python test_beam_search.py --workspace "/home/dagui/.keras/datasets/" \
-	--feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
+    --feature_path "image_vgg19_fc2_feature.h5" --ifpool False \
+	# --feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
 	--caption_file_path "{}.txt" \
-    --model_weights "/home/dagui/Documents/class-slides/pattern recognization/course_project/checkpoint/weights.004-0.723.hdf5"
+    --model_weights "/home/dagui/Documents/class-slides/pattern recognization/course_project/checkpoint/weights.010-0.791.hdf5" \ 
 	--save_path "." \
 	--caption_len 30 \
 	--embedding_size 256 \

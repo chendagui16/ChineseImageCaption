@@ -69,8 +69,9 @@ class CaptionModel(object):
             image_model.add(RepeatVector(self.caption_len))
             image_model.add(self.RNN(self.image_embedding_size, return_sequences=True))
         else:
-            image_model.add(Dense(self.embedding_size, activation='relu', input_shape=(self.image_len,)))
-            image_model.add(RepeatVector(1))
+            image_model.add(Dense(self.conv_channel, activation='relu', input_shape=(self.image_len,)))
+            image_model.add(RepeatVector(self.caption_len))
+            image_model.add(self.RNN(self.image_embedding_size, return_sequences=True))
 
         language_model = Sequential(name='language_model')
         language_model.add(Embedding(self.vocab_size, self.embedding_size, input_length=self.caption_len))
@@ -150,7 +151,9 @@ class CaptionModel(object):
             self.image_model.add(RepeatVector(self.caption_len))
             self.image_model.add(self.RNN(self.image_embedding_size, return_sequences=True, trainable=False))
         else:
-            self.image_model.add(Dense(self.embedding_size, activation='relu', trainable=False, input_shape=(self.image_len,)))
+            self.image_model.add(Dense(self.conv_channel, activation='relu', trainable=False, input_shape=(self.image_len,)))
+            self.image_model.add(RepeatVector(self.caption_len))
+            self.image_model.add(self.RNN(self.image_embedding_size, return_sequences=True, trainable=False))
 
         # copy weights from loaded model
         image_layer = model.get_layer('sequential_1')
