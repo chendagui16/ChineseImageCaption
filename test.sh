@@ -12,10 +12,11 @@ LOG=log/test_pool_${time}.log
 python test_beam_search.py --workspace "/home/dagui/.keras/datasets/" \
 	--feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
 	--caption_file_path "{}.txt" \
-    --model_weights "/home/dagui/Documents/class-slides/pattern recognization/ImageCaption2.0/checkpoint/weights.121-0.804.hdf5"
+    --model_weights "/home/dagui/Documents/class-slides/pattern recognization/course_project/checkpoint/weights.004-0.723.hdf5"
 	--save_path "." \
 	--caption_len 30 \
 	--embedding_size 256 \
+    --image_embedding_size 128 \
 	--RNN_out_units 512 \
 	--batch_size 40 \  # no use in test
 	--epochs 500 \   # no use in test

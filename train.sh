@@ -15,6 +15,7 @@ python train.py --workspace "/home/dagui/.keras/datasets/" \
 	--save_path "." \
 	--caption_len 30 \
 	--embedding_size 256 \
+    --image_embedding_size 128 \
 	--RNN_out_units 512 \
 	--batch_size 40 \
 	--epochs 500 \
