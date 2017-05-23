@@ -6,7 +6,8 @@ import codecs
 from tensorflow import flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("caption_len", 30, "The length of caption")
-flags.DEFINE_string("model_weights", "/home/dagui/Documents/class-slides/pattern recognization/course_project/checkpoint/weights.010-0.791.hdf5", "The weights file of test model")  # no use in test
+flags.DEFINE_string("model_weights", "/home/dagui/Documents/class-slides/pattern recognization/course_project/checkpoint/weights.058-0.808.hdf5", "The weights file of test model")  # no use in test
+flags.DEFINE_string("save_result", "result.txt", "the file of save the result")
 
 config = Config()
 data = Preprocessor(config)
@@ -26,7 +27,7 @@ caption_gen = CaptionGenerator(model=caption_model,
                                beam_size=3,  # set beam_search size
                                length_normalization_factor=0.5)  # biger indicate longer sentence will be favored
 
-with codecs.open('result.txt', 'w+', 'utf8') as f:
+with codecs.open(FLAGS.save_result, 'w+', 'utf8') as f:
     for id in range(data.test_num):
         # print(id)
         # print(data.test_set[id].shape)

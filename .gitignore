@@ -6,5 +6,6 @@ checkpoint/
 *.swp
 .ropeproject
 *.pyc
+result/
 result.txt
 result_greedy.txt
