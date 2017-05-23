@@ -1,3 +1,7 @@
+# @ Author: Dagui Chen
+# @ Email: goblin_chen@163.com
+# @ Date: 2017-05-02
+# ========================================
 import numpy as np
 import h5py
 
@@ -8,9 +12,14 @@ class Preprocessor(object):
     and its corresponding caption
     """
     def __init__(self, config):
-        f = h5py.File(config.fc2, 'r')
+        f = h5py.File(config.feature_path, 'r')
         self.train_set = f['train_set'].value
-        self.train_num, self.image_len = self.train_set.shape
+	if config.ifpool:
+            self.train_num = self.train_set.shape[0]
+	    self.image_len = self.train_set.shape[-1]
+#	self.train_num, self.image_len = self.train_set.shape
+	else:
+	    self.train_num, self.image_len = self.train_set.shape
 
         self.val_set = f['validation_set'].value
         self.val_num = self.val_set.shape[0]

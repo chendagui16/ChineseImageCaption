@@ -1,17 +1,28 @@
-# @ Author: Dagui Chen
-# @ Email: goblin_chen@163.com
-# @ Date: 2017-05-08
+# @ Author: Dagui Chen/ Xin Su
+# @ Email: goblin_chen@163.com/suxin5987@qq.com
+# @ Date: 2017-05-08/2017-05-19
 # =====================================
 import numpy as np
 import random
 from keras.models import Model, Sequential, load_model
-from keras.layers import Input, Dense, Embedding, GRU, RepeatVector
+from keras.layers import Input, Dense, Embedding, GRU, LSTM, SimpleRNN, RepeatVector, Conv2D, GlobalMaxPooling2D
 from keras.layers.merge import Concatenate
 from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau
+from tensorflow import flags
+
+FLAGS = flags.FLAGS
+flags.DEFINE_integer("embedding_size", 256, "The size of language word embedding.")
+flags.DEFINE_integer("RNN_out_units", 512, "The number of RNN units.")
+flags.DEFINE_integer("batch_size", 20, "Training batch size")
+flags.DEFINE_integer("inference_batch_size", 1000, "The batch size of Test")
+flags.DEFINE_integer("epochs", 500, "The epochs of Training")
+flags.DEFINE_integer("num_RNN_layers", 3, "The Layer number of RNN")
+flags.DEFINE_string("save_path", ".", "The path of save dir")
+flags.DEFINE_string("RNN_category", "LSTM", "Set the category of RNNCell, GRU, LSTM or SimpleRNN")
 
 
 class CaptionModel(object):
-    def __init__(self, image_len, caption_len, vocab_size, save_path='.'):
+    def __init__(self, image_len, caption_len, vocab_size, ifpool):
         # image feature length, such as fc2 or fc1
         self.image_len = image_len
 
@@ -21,22 +32,42 @@ class CaptionModel(object):
         # unique vocabular size
         self.vocab_size = vocab_size
 
+        self.ifpool = ifpool
+
         # save_path for checkpoint and tensorboard
-        self.save_path = save_path
+        self.save_path = FLAGS.save_path
+
+        # pooling feature shape
+        self.pooling_shape = (7, 7, 512)
+        self.conv_channel = 512
 
         # embedding_size (default = 128) word embedding size
-        self.embedding_size = 128
-        self.RNN_out_uints = 128
-        self.batch_size = 40
-        self.inference_batch_size = 1000  # inference_batch_size should divide Test sample number
-        self.epochs = 40
+        self.embedding_size = FLAGS.embedding_size
+        self.RNN_out_uints = FLAGS.RNN_out_units
+        self.batch_size = FLAGS.batch_size
+        self.inference_batch_size = FLAGS.inference_batch_size
+        self.epochs = FLAGS.epochs
+        self.num_RNN_layers = FLAGS.num_RNN_layers
+        self.RNN = {'GRU': GRU, 'LSTM': LSTM, 'SimpleRNN': SimpleRNN}[FLAGS.RNN_category]
 
     def build_train_model(self):
-        image_input = Input(shape=(self.image_len,), name='image_input')
+        if self.ifpool:
+            image_input = Input(shape=self.pooling_shape, name='image_input')
+        else:
+            image_input = Input(shape=(self.image_len,), name='image_input')
+
         caption_input = Input(shape=(self.caption_len,), name='caption_input')
 
         image_model = Sequential(name='image_model')
-        image_model.add(Dense(self.embedding_size, activation='relu', input_shape=(self.image_len,)))
+        if self.ifpool:
+            image_model.add(Conv2D(self.conv_channel, kernel_size=3, strides=1, padding='same', activation='relu', input_shape=self.pooling_shape))
+            image_model.add(Conv2D(self.conv_channel, kernel_size=3, strides=1, padding='same', activation='relu'))
+            image_model.add(Conv2D(self.conv_channel, kernel_size=3, strides=1, padding='same', activation='relu'))
+            image_model.add(GlobalMaxPooling2D())
+            image_model.add(Dense(self.embedding_size, activation='relu'))
+        else:
+            image_model.add(Dense(self.embedding_size, activation='relu', input_shape=(self.image_len,)))
+
         image_model.add(RepeatVector(1))
 
         language_model = Sequential(name='language_model')
@@ -46,9 +77,14 @@ class CaptionModel(object):
         caption_embedding = language_model(caption_input)
 
         RNN_input = Concatenate(axis=-2)([image_embedding, caption_embedding])
-        RNN_output = GRU(self.RNN_out_uints, name='RNN', return_sequences=True)(RNN_input)
-        caption_output = Dense(self.vocab_size, activation='softmax', name='output')(RNN_output)
 
+        for layer_idx in range(self.num_RNN_layers):
+            if layer_idx == 0:
+                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, return_sequences=True)(RNN_input)
+            else:
+                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, return_sequences=True)(locals()['RNN_output%s' % (layer_idx-1)])
+
+        caption_output = Dense(self.vocab_size, activation='softmax', name='output')(locals()['RNN_output%s' % (self.num_RNN_layers-1)])
         self.model = Model([image_input, caption_input], caption_output)
         self.model.summary()
         self.model.compile(optimizer='rmsprop', metrics=['accuracy'], loss='categorical_crossentropy')
@@ -57,8 +93,9 @@ class CaptionModel(object):
         """Generator for train or val
         Shuffle the training samples
         For each image, we only choose a caption randomly from its 5 captions
-        @ imageData: image feature
-        @ captionData: several one-hot vector for each image
+        Arg:
+            imageData: image feature
+            captionData: several one-hot vector for each image
         """
         sampleNum = imageData.shape[0]
         # train set and validation set has different steps_per_epoch, so we need compute again
@@ -78,14 +115,17 @@ class CaptionModel(object):
                 X2 = np.argmax(Y, axis=-1)
                 yield ({'image_input': X1, 'caption_input': X2}, {'output': np.concatenate([Y, Y_end], axis=1)})
 
+    def build_train_model_from_checkpoint(self, checkpoint):
+        self.model = load_model(checkpoint)
+
     def train(self, X_train, Y_train, X_val, Y_val):
         train_num = len(Y_train)
         val_num = len(Y_val)
         steps_per_epoch = train_num // self.batch_size
         val_steps = val_num // self.batch_size
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=5, min_lr=0.0000001)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, min_lr=0.0000001)
         save_model = ModelCheckpoint(self.save_path+'/checkpoint/weights.{epoch:03d}-{val_acc:.3f}.hdf5', verbose=1, save_best_only=True)
-        tensorboard = TensorBoard(log_dir=self.save_path+'/logs')
+        tensorboard = TensorBoard(log_dir=self.save_path+'/tf_logs')
         self.model.fit_generator(self.generator(X_train, Y_train),
                                  steps_per_epoch=steps_per_epoch,
                                  validation_data=self.generator(X_val, Y_val),
@@ -96,11 +136,20 @@ class CaptionModel(object):
     def build_inference_model(self, checkpoint, beam_search=False):
         if beam_search:
             self.inference_batch_size = 1
-        model = load_model(checkpoint)
+            model = load_model(checkpoint)
 
         # image model
         self.image_model = Sequential()
-        self.image_model.add(Dense(self.embedding_size, activation='relu', trainable=False, input_shape=(self.image_len,)))
+        if self.ifpool:
+            self.image_model.add(Conv2D(self.conv_channel, trainable=False, kernel_size=3, strides=1, padding='same', activation='relu', input_shape=self.pooling_shape))
+            self.image_model.add(Conv2D(self.conv_channel, trainable=False, kernel_size=3, strides=1, padding='same', activation='relu'))
+            self.image_model.add(Conv2D(self.conv_channel, trainable=False, kernel_size=3, strides=1, padding='same', activation='relu'))
+            self.image_model.add(GlobalMaxPooling2D())
+            self.image_model.add(Dense(self.embedding_size, trainable=False, activation='relu'))
+        else:
+            self.image_model.add(Dense(self.embedding_size, activation='relu', trainable=False, input_shape=(self.image_len,)))
+
+        # self.image_model.add(Dense(self.embedding_size, activation='relu', trainable=False, input_shape=(self.image_len,)))
         # copy weights from loaded model
         image_layer = model.get_layer('sequential_1')
         assert image_layer is not None, 'There is no layer named sequential_1'
@@ -118,12 +167,16 @@ class CaptionModel(object):
         # Forward a image/word embedding to get a next word
         # Use Stateful RNN
         self.caption_model = Sequential()
-        self.caption_model.add(GRU(self.RNN_out_uints, return_sequences=True, trainable=False,
-                                   stateful=True, batch_input_shape=(self.inference_batch_size, 1, self.embedding_size)))
+        for idx in range(self.num_RNN_layers):
+            if idx == 0:
+                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, trainable=False, stateful=True, batch_input_shape=(self.inference_batch_size, 1, self.embedding_size)))
+            else:
+                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, trainable=False, stateful=True))
+
         self.caption_model.add(Dense(self.vocab_size, activation='softmax', trainable=False))
 
         caption_weigts = []
-        for layer in model.layers[-2:]:  # copy the last 2 layer's weights
+        for layer in model.layers[-(self.num_RNN_layers+1):]:  # copy the last (num_rnn_layers+1) layer's weights
             caption_weigts.extend(layer.get_weights())
 
         self.caption_model.set_weights(caption_weigts)
