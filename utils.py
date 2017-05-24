@@ -14,12 +14,12 @@ class Preprocessor(object):
     def __init__(self, config):
         f = h5py.File(config.feature_path, 'r')
         self.train_set = f['train_set'].value
-	if config.ifpool:
+        if config.ifpool:
             self.train_num = self.train_set.shape[0]
-	    self.image_len = self.train_set.shape[-1]
-#	self.train_num, self.image_len = self.train_set.shape
-	else:
-	    self.train_num, self.image_len = self.train_set.shape
+            self.image_len = self.train_set.shape[-1]
+            #	self.train_num, self.image_len = self.train_set.shape
+        else:
+            self.train_num, self.image_len = self.train_set.shape
 
         self.val_set = f['validation_set'].value
         self.val_num = self.val_set.shape[0]

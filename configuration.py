@@ -15,4 +15,5 @@ class Config(object):
         self.workspace = FLAGS.workspace
         self.feature_path = self.workspace + FLAGS.feature_path
         self.caption = self.workspace + FLAGS.caption_file_path
+        print FLAGS.ifpool
         self.ifpool = FLAGS.ifpool  # Default feature is fc / if use the pooling feature, it needs to be True

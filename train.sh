@@ -8,10 +8,10 @@ if [ ! -d "log" ]; then
 fi
 LOG=log/train_pool_${time}.log
 
+    #--feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
 # dir path flags
 python train.py --workspace "/home/dagui/.keras/datasets/" \
     --feature_path "image_vgg19_fc2_feature.h5" --noifpool \
-	# --feature_path "image_vgg19_block5_pool_feature.h5" --ifpool True \
 	--caption_file_path "{}.txt" \
 	--save_path "." \
 	--caption_len 30 \
@@ -21,7 +21,7 @@ python train.py --workspace "/home/dagui/.keras/datasets/" \
 	--batch_size 40 \
 	--epochs 500 \
 	--num_RNN_layers 3 \
-	--RNN_category "LSTM" 2>&1|tee ${LOG}
+	--RNN_category "GRU" 2>&1|tee ${LOG}
 #if finetune use this
 #	--if_finetune=True \
 #	--weight_dir="." \

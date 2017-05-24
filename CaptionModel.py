@@ -83,9 +83,9 @@ class CaptionModel(object):
 
         for layer_idx in range(self.num_RNN_layers):
             if layer_idx == 0:
-                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, return_sequences=True)(RNN_input)
+                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, use_bias=False, return_sequences=True)(RNN_input)
             else:
-                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, return_sequences=True)(locals()['RNN_output%s' % (layer_idx-1)])
+                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, use_bias=False, return_sequences=True)(locals()['RNN_output%s' % (layer_idx-1)])
 
         caption_output = Dense(self.vocab_size, activation='softmax', name='output')(locals()['RNN_output%s' % (self.num_RNN_layers-1)])
         self.model = Model([image_input, caption_input], caption_output)
@@ -174,15 +174,15 @@ class CaptionModel(object):
         self.caption_model = Sequential()
         for idx in range(self.num_RNN_layers):
             if idx == 0:
-                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, trainable=False, stateful=True,
+                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, use_bias=False, trainable=False, stateful=True,
                                                 batch_input_shape=(self.inference_batch_size, 1, self.embedding_size + self.image_embedding_size)))
             else:
-                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, trainable=False, stateful=True))
+                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, use_bias=False, trainable=False, stateful=True))
 
         self.caption_model.add(Dense(self.vocab_size, activation='softmax', trainable=False))
 
         caption_weigts = []
-        for layer in model.layers[-(self.num_RNN_layers+1):]:  # copy the last (num_rnn_layers+1) layer's weights
+        for layer in model.layers[-(self.num_RNN_layers + 1):]:  # copy the last (num_rnn_layers+1) layer's weights
             caption_weigts.extend(layer.get_weights())
 
         self.caption_model.set_weights(caption_weigts)
