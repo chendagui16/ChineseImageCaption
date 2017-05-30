@@ -5,7 +5,7 @@
 import numpy as np
 import random
 from keras.models import Model, Sequential, load_model
-from keras.layers import Input, Dense, Embedding, GRU, LSTM, SimpleRNN, RepeatVector, Conv2D, GlobalAveragePooling2D
+from keras.layers import Input, Dense, Embedding, GRU, LSTM, SimpleRNN, Conv2D, GlobalAveragePooling2D, Reshape
 from keras.layers.merge import Concatenate
 from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from tensorflow import flags
@@ -66,12 +66,11 @@ class CaptionModel(object):
             image_model.add(Conv2D(self.conv_channel, kernel_size=3, strides=1, padding='same', activation='relu'))
             image_model.add(Conv2D(self.conv_channel, kernel_size=3, strides=1, padding='same', activation='relu'))
             image_model.add(GlobalAveragePooling2D())
-            image_model.add(RepeatVector(self.caption_len))
-            image_model.add(self.RNN(self.image_embedding_size, return_sequences=True))
+            image_model.add(Dense(self.image_embedding_size * self.caption_len, activation='relu'))
         else:
-            image_model.add(Dense(self.conv_channel, activation='relu', input_shape=(self.image_len,)))
-            image_model.add(RepeatVector(self.caption_len))
-            image_model.add(self.RNN(self.image_embedding_size, return_sequences=True))
+            image_model.add(Dense(self.image_embedding_size * self.caption_len, activation='relu', input_shape=(self.image_len,)))
+
+        image_model.add(Reshape((self.caption_len, self.image_embedding_size)))
 
         language_model = Sequential(name='language_model')
         language_model.add(Embedding(self.vocab_size, self.embedding_size, input_length=self.caption_len))
@@ -83,9 +82,9 @@ class CaptionModel(object):
 
         for layer_idx in range(self.num_RNN_layers):
             if layer_idx == 0:
-                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, use_bias=False, return_sequences=True)(RNN_input)
+                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, return_sequences=True)(RNN_input)
             else:
-                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, use_bias=False, return_sequences=True)(locals()['RNN_output%s' % (layer_idx-1)])
+                locals()['RNN_output%s' % layer_idx] = self.RNN(self.RNN_out_uints, name='RNN%s' % layer_idx, return_sequences=True)(locals()['RNN_output%s' % (layer_idx-1)])
 
         caption_output = Dense(self.vocab_size, activation='softmax', name='output')(locals()['RNN_output%s' % (self.num_RNN_layers-1)])
         self.model = Model([image_input, caption_input], caption_output)
@@ -126,8 +125,8 @@ class CaptionModel(object):
         val_num = len(Y_val)
         steps_per_epoch = train_num // self.batch_size
         val_steps = val_num // self.batch_size
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, min_lr=0.0000001)
-        save_model = ModelCheckpoint(self.save_path+'/checkpoint/weights.{epoch:03d}-{val_acc:.3f}.hdf5', verbose=1, save_best_only=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', verbose=1, factor=0.1, patience=5, min_lr=0.00001)
+        save_model = ModelCheckpoint(self.save_path+'/checkpoint/weights.{epoch:03d}-{val_acc:.3f}.hdf5', monitor='loss', verbose=1, save_best_only=True)
         tensorboard = TensorBoard(log_dir=self.save_path+'/tf_logs')
         self.model.fit_generator(self.generator(X_train, Y_train),
                                  steps_per_epoch=steps_per_epoch,
@@ -148,12 +147,11 @@ class CaptionModel(object):
             self.image_model.add(Conv2D(self.conv_channel, trainable=False, kernel_size=3, strides=1, padding='same', activation='relu'))
             self.image_model.add(Conv2D(self.conv_channel, trainable=False, kernel_size=3, strides=1, padding='same', activation='relu'))
             self.image_model.add(GlobalAveragePooling2D())
-            self.image_model.add(RepeatVector(self.caption_len))
-            self.image_model.add(self.RNN(self.image_embedding_size, return_sequences=True, trainable=False))
+            self.image_model.add(Dense(self.image_embedding_size * self.caption_len, trainable=False, activation='relu'))
         else:
-            self.image_model.add(Dense(self.conv_channel, activation='relu', trainable=False, input_shape=(self.image_len,)))
-            self.image_model.add(RepeatVector(self.caption_len))
-            self.image_model.add(self.RNN(self.image_embedding_size, return_sequences=True, trainable=False))
+            self.image_model.add(Dense(self.image_embedding_size * self.caption_len, trainable=False, activation='relu', input_shape=(self.image_len,)))
+
+        self.image_model.add(Reshape((self.caption_len, self.image_embedding_size)))
 
         # copy weights from loaded model
         image_layer = model.get_layer('sequential_1')
@@ -174,15 +172,15 @@ class CaptionModel(object):
         self.caption_model = Sequential()
         for idx in range(self.num_RNN_layers):
             if idx == 0:
-                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, use_bias=False, trainable=False, stateful=True,
+                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, trainable=False, stateful=True,
                                                 batch_input_shape=(self.inference_batch_size, 1, self.embedding_size + self.image_embedding_size)))
             else:
-                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, use_bias=False, trainable=False, stateful=True))
+                self.caption_model.add(self.RNN(self.RNN_out_uints, return_sequences=True, trainable=False, stateful=True))
 
         self.caption_model.add(Dense(self.vocab_size, activation='softmax', trainable=False))
 
         caption_weigts = []
-        for layer in model.layers[-(self.num_RNN_layers + 1):]:  # copy the last (num_rnn_layers+1) layer's weights
+        for layer in model.layers[-(self.num_RNN_layers+1):]:  # copy the last (num_rnn_layers+1) layer's weights
             caption_weigts.extend(layer.get_weights())
 
         self.caption_model.set_weights(caption_weigts)
